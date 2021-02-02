@@ -1,7 +1,7 @@
 
 syntax = "proto3";
 
-# for compatibility with waypoint builtin docker plugin we set the package to docker
+// for compatibility with waypoint builtin docker plugin we set the package to docker
 package docker;
 
 option go_package = "github.com/eemelianov/transporter/registry";
