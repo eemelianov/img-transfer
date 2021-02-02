@@ -1,24 +1,26 @@
 package main
 
 import (
-	"github.com/eemelianov/transporter/builder"
-	"github.com/eemelianov/transporter/platform"
 	"github.com/eemelianov/transporter/registry"
-	"github.com/eemelianov/transporter/release"
 	sdk "github.com/hashicorp/waypoint-plugin-sdk"
 )
 
 func main() {
-	// sdk.Main allows you to register the components which should
-	// be included in your plugin
-	// Main sets up all the go-plugin requirements
-
 	sdk.Main(sdk.WithComponents(
-		// Comment out any components which are not
-		// required for your plugin
-		&builder.Builder{},
 		&registry.Registry{},
-		&platform.Platform{},
-		&release.ReleaseManager{},
 	))
 }
+
+//func main() {
+//	var c registry.Registry
+//	src := `host="ssh://eemelianov@192.168.0.47:2222"
+//			image="eemelianov/plutos"
+//			tag="5846a0abd47763fba11e6aa9dd5648c8e2b9524d"`
+//	f, _ := hclparse.NewParser().ParseHCL([]byte(src), "test.hcl")
+//
+//	component.Configure(&c, f.Body, nil)
+//	ui := terminal.ConsoleUI(context.Background())
+//
+//	pushFunc := c.PushFunc().(func(*component.Source, context.Context, terminal.UI) (*registry.Image, error))
+//	pushFunc(&component.Source{App: "plutos-bot", Path: "./"}, context.Background(), ui)
+//}
