@@ -1,17 +1,25 @@
-# Waypoint Plugin Template
+# Plugin: img-transfer
 
-This folder contains an example plugin structure which can be used when building your own plugins.
+A simple Waypoint Plugin to transfer Docker image to a remote Host via SSH.
 
-## Steps
+## Usage
 
-1. To scaffold a new plugin use the `./clone.sh` script passing the destination folder and the Go package
-for your new plugin as parameters
+````hcl
+build {
+  use 'packer' {}
+  registry {
+    use "img-transfer" {
+      host = "ssh://user@ip:port"
+      image = "my-target-image-name"
+      tag = gitrefhash()
+    }
+  }
+}
+````
 
-```shell
-./clone.sh myplugin ../destination_folder github.com/myorg/mypackage
-```
+## Build
 
-2. You can then run the Makefile to compile the new plugin, the `Makefile` will build the plugin for all architectures.
+1. You can run the Makefile to compile the plugin, the `Makefile` will build the plugin for all architectures.
 
 ```shell
 cd ../destination_folder
@@ -37,8 +45,7 @@ GOOS=windows GOARCH=386 go build -o ./bin/windows_386/waypoint-plugin-mytest.exe
 
 ## Building with Docker
 
-To build plugins for release you can use the `build-docker` Makefile target, this will 
-build your plugin for all architectures and create zipped artifacts which can be uploaded
+To build this plugin for release you can use the `build-docker` Makefile target, this will build this plugin for all architectures and create zipped artifacts which can be uploaded
 to an artifact manager such as GitHub releases.
 
 The built artifacts will be output in the `./releases` folder.
@@ -64,12 +71,12 @@ DOCKER_BUILDKIT=1 docker build --output releases --progress=plain .
 
 ## Building and releasing with GitHub Actions
 
-When cloning the template a default GitHub Action is created at the path `.github/workflows/build-plugin.yaml`. You can use this action to automatically build and release your plugin.
+When cloning the template a default GitHub Action is created at the path `.github/workflows/build-plugin.yaml`. You can use this action to automatically build and release your
+plugin.
 
 The action has two main phases:
-1. **Build** - This phase builds the plugin binaries for all the supported architectures. It is triggered when pushing
-   to a branch or on pull requests.
-1. **Release** - This phase creates a new GitHub release containing the built plugin. It is triggered when pushing tags
-   which starting with `v`, for example `v0.1.0`.
+
+1. **Build** - This phase builds the plugin binaries for all the supported architectures. It is triggered when pushing to a branch or on pull requests.
+1. **Release** - This phase creates a new GitHub release containing the built plugin. It is triggered when pushing tags which starting with `v`, for example `v0.1.0`.
 
 You can enable this action by clicking on the `Actions` tab in your GitHub repository and enabling GitHub Actions.
