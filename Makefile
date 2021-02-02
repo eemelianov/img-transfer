@@ -46,5 +46,5 @@ zip:
 
 # Build the plugin using a Docker container
 build-docker:
-	rm -rf ./releases
+	rm -rf ./releases 2> /dev/null
 	DOCKER_BUILDKIT=1 docker build --output releases --progress=plain .
