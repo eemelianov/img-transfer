@@ -1,4 +1,4 @@
-module github.com/eemelianov/transporter
+module github.com/eemelianov/img-transfer
 
 go 1.14
 
@@ -30,5 +30,3 @@ require (
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 )
-
-// replace github.com/hashicorp/waypoint-plugin-sdk => ../../waypoint-plugin-sdk

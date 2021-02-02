@@ -1,4 +1,4 @@
-PLUGIN_NAME=transporter
+PLUGIN_NAME=img-transfer
 
 ifndef _ARCH
 _ARCH := $(shell ./print_arch)

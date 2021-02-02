@@ -13,14 +13,14 @@ import (
 	"net/http"
 )
 
-type TransporterConfig struct {
+type TransferConfig struct {
 	Host  string `hcl:"host"`
 	Image string `hcl:"image"`
 	Tag   string `hcl:"tag"`
 }
 
 type Registry struct {
-	config TransporterConfig
+	config TransferConfig
 }
 
 func (r *Registry) Config() (interface{}, error) {
@@ -28,10 +28,10 @@ func (r *Registry) Config() (interface{}, error) {
 }
 
 func (r *Registry) ConfigSet(config interface{}) error {
-	c, ok := config.(*TransporterConfig)
+	c, ok := config.(*TransferConfig)
 	if !ok {
 		// The Waypoint SDK should ensure this never gets hit
-		return fmt.Errorf("expected *transporterconfig as parameter")
+		return fmt.Errorf("expected *transferconfig as parameter")
 	}
 
 	// validate the config
@@ -98,7 +98,7 @@ func (r *Registry) push(src *Image, ctx context.Context, ui terminal.UI) (*Image
 }
 
 func (r *Registry) Documentation() (*docs.Documentation, error) {
-	doc, err := docs.New(docs.FromConfig(&TransporterConfig{}))
+	doc, err := docs.New(docs.FromConfig(&TransferConfig{}))
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +109,8 @@ func (r *Registry) Documentation() (*docs.Documentation, error) {
 build {
  ...
   registry {
-    use "transporter" {
-      host = "ssh://user@ip:port"
+    use "img-transfer" {
+      host  = "ssh://user@ip:port"
       image = "my-target-image-name"
       tag   = gitrefhash()
     }
