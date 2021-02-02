@@ -8,29 +8,25 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	"github.com/hashicorp/waypoint-plugin-sdk/component"
+	"github.com/hashicorp/waypoint-plugin-sdk/docs"
 	"github.com/hashicorp/waypoint-plugin-sdk/terminal"
 	"net/http"
 )
 
 type TransporterConfig struct {
-	Host     string `hcl:"host"`
-	Image    string `hcl:"image"`
-	Tag      string `hcl:"tag"`
-	Override bool   `hcl:"override_existing,optional"`
-	CheckID  bool   `hcl:"compare_checksum,optional"`
+	Host  string `hcl:"host"`
+	Image string `hcl:"image"`
+	Tag   string `hcl:"tag"`
 }
 
 type Registry struct {
 	config TransporterConfig
 }
 
-// Implement Configurable
 func (r *Registry) Config() (interface{}, error) {
 	return &r.config, nil
 }
 
-// Implement ConfigurableNotify
 func (r *Registry) ConfigSet(config interface{}) error {
 	c, ok := config.(*TransporterConfig)
 	if !ok {
@@ -40,53 +36,17 @@ func (r *Registry) ConfigSet(config interface{}) error {
 
 	// validate the config
 	if c.Host == "" {
-		return fmt.Errorf("host must be set to a valid ssh url")
+		return fmt.Errorf("host must be set to a valid ssh connection string")
 	}
-
-	if c.Image == "" {
-		return fmt.Errorf("image name must be set")
-	}
-
-	if c.Tag == "" {
-		return fmt.Errorf("image tag must be set")
-	}
-
 	return nil
 }
 
-// Implement Registry
 func (r *Registry) PushFunc() interface{} {
 	// return a function which will be called by Waypoint
 	return r.push
 }
 
-// A PushFunc does not have a strict signature, you can define the parameters
-// you need based on the Available parameters that the Waypoint SDK provides.
-// Waypoint will automatically inject parameters as specified
-// in the signature at run time.
-//
-// Available input parameters:
-// - context.Context
-// - *component.Source
-// - *component.JobInfo
-// - *component.DeploymentConfig
-// - *datadir.Project
-// - *datadir.App
-// - *datadir.Component
-// - hclog.Logger
-// - terminal.UI
-// - *component.LabelSet
-//
-// In addition to default input parameters the builder.Binary from the Build step
-// can also be injected.
-//
-// The output parameters for PushFunc must be a Struct which can
-// be serialzied to Protocol Buffers binary format and an error.
-// This Output Value will be made available for other functions
-// as an input parameter.
-// If an error is returned, Waypoint stops the execution flow and
-// returns an error to the user.
-func (r *Registry) push(src *component.Source, ctx context.Context, ui terminal.UI) (*Image, error) {
+func (r *Registry) push(src *Image, ctx context.Context, ui terminal.UI) (*Image, error) {
 	u := ui.Status()
 	defer u.Close()
 	localCLI, err := localClient()
@@ -100,35 +60,33 @@ func (r *Registry) push(src *component.Source, ctx context.Context, ui terminal.
 	}
 	defer remoteCLI.Close()
 
-	localImgRef := src.App + ":latest"
-	localImage, err := summary(localImgRef, localCLI, ctx)
+	target := &Image{
+		Image: r.config.Image,
+		Tag:   r.config.Tag,
+	}
+
+	if r.config.Image == "" || r.config.Tag == "" {
+		target = src
+	}
+
+	localImage, err := summary(src.FullImageName(), localCLI, ctx)
 	if err != nil {
 		return nil, err
 	}
 	if localImage == nil {
-		return nil, errors.New("Image not found: " + localImgRef)
+		return nil, errors.New("Image not found: " + src.FullImageName())
 	}
 
-	remoteImgRef := r.config.Image + ":" + r.config.Tag
-	remoteImage, err := summary(remoteImgRef, remoteCLI, ctx)
-	if err != nil {
-		return nil, err
-	}
-	if remoteImage != nil && r.config.CheckID && localImage.ID == remoteImage.ID {
-		u.Step("Nothing to do.", "Image not changed, skipping push")
-		image := &Image{
-			Image: r.config.Image,
-			Tag:   r.config.Tag,
+	if target != src {
+		u.Update("Tagging Image as: " + target.FullImageName())
+		err = localCLI.ImageTag(ctx, src.FullImageName(), target.FullImageName())
+		if err != nil {
+			return nil, err
 		}
-		return image, nil
 	}
-	u.Update("Tagging Image: " + localImgRef + " as: " + remoteImgRef)
-	err = localCLI.ImageTag(ctx, localImgRef, remoteImgRef)
-	if err != nil {
-		return nil, err
-	}
-	u.Update("Pushing Image to remote Host")
-	savedImage, err := localCLI.ImageSave(ctx, []string{remoteImgRef})
+
+	u.Update("Pushing Image to remote Docker host")
+	savedImage, err := localCLI.ImageSave(ctx, []string{target.FullImageName()})
 	if err != nil {
 		return nil, err
 	}
@@ -136,14 +94,58 @@ func (r *Registry) push(src *component.Source, ctx context.Context, ui terminal.
 	if err != nil {
 		return nil, err
 	}
-	return &Image{
-		Image: r.config.Image,
-		Tag:   r.config.Tag,
-	}, nil
+	return target, nil
 }
 
-func (a *Image) Labels() map[string]string {
-	return make(map[string]string)
+func (r *Registry) Documentation() (*docs.Documentation, error) {
+	doc, err := docs.New(docs.FromConfig(&TransporterConfig{}))
+	if err != nil {
+		return nil, err
+	}
+
+	doc.Description("Transfer a Docker image to a remote Docker host.")
+
+	doc.Example(`
+build {
+ ...
+  registry {
+    use "transporter" {
+      host = "ssh://user@ip:port"
+      image = "my-target-image-name"
+      tag   = gitrefhash()
+    }
+  }
+}
+`)
+
+	doc.Input("registry.Image")
+	doc.Output("registry.Image")
+
+	doc.SetField(
+		"host",
+		"the connection url to the remote Docker host",
+		docs.Summary(
+			"this value must be a valid SSH connection string, e.g. ssh://user@ip:port",
+		),
+	)
+
+	doc.SetField(
+		"image",
+		"the target image name for remote host",
+		docs.Summary(
+			"this value can be the fully qualified name to the image.",
+		),
+	)
+
+	doc.SetField(
+		"tag",
+		"the tag for the target image",
+		docs.Summary(
+			"this is added to image to provide the full image reference",
+		),
+	)
+
+	return doc, nil
 }
 
 func summary(reference string, client *client.Client, ctx context.Context) (*types.ImageSummary, error) {
