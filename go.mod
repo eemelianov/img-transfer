@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/docker/cli v20.10.22+incompatible
-	github.com/docker/docker v20.10.22+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/golang/protobuf v1.5.2
 	github.com/hashicorp/waypoint-plugin-sdk v0.0.0-20221209154611-9ceb8a691558
 	google.golang.org/protobuf v1.28.1
